@@ -17,8 +17,10 @@ import {
 import { Input } from "@/components/ui/input"
 import * as z from "zod"
 import Image from 'next/image';
-import { ChangeEvent } from 'react';
+import { ChangeEvent, useState } from 'react';
 import { Textarea } from  '@/components/ui/textarea';
+import { isBase64Image } from '@/lib/utils';
+import {useUploadThing} from '@/lib/uploadThing'
 
 interface Props {
   user: {
@@ -33,7 +35,12 @@ interface Props {
 }
 
 
+type FormFieldChangeEvent<T = string> = ChangeEvent<HTMLInputElement | HTMLTextAreaElement> & { target: { value: T } }
+
 const AccountProfile = ({user, btnTitle}: Props) => {
+  const [files, setFiles] = useState<File[]>([])
+  const {startUpload} = useUploadThing('media')
+
   const form = useForm({
     resolver: zodResolver(UserValidation),
     defaultValues: {
@@ -44,14 +51,46 @@ const AccountProfile = ({user, btnTitle}: Props) => {
     }
   })
 
-  const handleImage = (e: ChangeEvent, fieldChange: (value: string) => void) => {
+  const handleImage = (e: FormFieldChangeEvent, fieldChange: (value: string) => void) => {
     e.preventDefault();
+
+    const fileReader = new FileReader();
+
+    if('files' in e.target){
+
+      if(e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+  
+        setFiles(Array.from(e.target.files))
+  
+        if(!file.type.includes('image')) return;
+  
+        fileReader.onload = async (event ) => {
+          const imageDataUrl = event.target?.result?.toString() || '';
+  
+          fieldChange(imageDataUrl)
+        }
+  
+        fileReader.readAsDataURL(file)
+      }
+    }
+
+    // create backend route
+
   }
 
-  function onSubmit(values: z.infer<typeof UserValidation>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    console.log(values)
+  async function onSubmit(values: z.infer<typeof UserValidation>) {
+    const blob = values.profile_photo;
+    const hasImageChanged = isBase64Image(blob)
+
+    if(hasImageChanged) {
+      const imgRes = await startUpload(files)
+
+      if(imgRes && imgRes[0].url) {
+        values.profile_photo = imgRes[0].url
+      }
+    }
+
   }
 
   return (
