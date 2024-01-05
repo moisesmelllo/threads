@@ -5,12 +5,31 @@ import Thread from "../models/thread.model";
 import User from "../models/user.model";
 import { connectToDB } from "../mongoose"
 import { todo } from "node:test";
+import path from "path";
 
 interface Params {
   text: string,
   author: string,
   communityId: string | null,
   path: string
+}
+
+interface ThreadType {
+  thread: {
+    _id: string;
+    id: string;
+    parentId: string;
+    text: string;
+    community: string;
+    createdAt: Date;
+    children: Array<{
+      _id: string;
+      id: string;
+      name: string;
+      parentId: string;
+      image: string;
+    }>;
+  };
 }
 
 export async function createThread({
@@ -42,7 +61,6 @@ export async function createThread({
 
 }
 
-// TODO: Entender este codigo!!
 export async function fetchPosts(pageNumber = 1, pageSize = 20) {
   connectToDB();
 
@@ -75,4 +93,83 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
       const isNext = totalPostsCount > skipAmount + posts.length;
 
       return {posts, isNext}
+}
+
+export async function fetchThreadById(id:string) {
+  connectToDB();
+
+  try {
+
+    //TODO: POPULATE COMMUNITY
+    const thread = await Thread.findById(id)
+      .populate({
+        path: 'author',
+        model: User,
+        select: '_id id name image'
+      })
+      .populate({
+        path: 'children',
+        populate: [
+          {
+            path: 'author',
+            model: User,
+            select: '_id id name parentId image'
+          },
+          {
+            path: 'children',
+            model: Thread,
+            populate: {
+              path: 'author',
+              model: User,
+              select: '_id id name parentId image'
+            }
+          }
+        ]
+      }).exec();
+
+      return thread;
+
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      throw new Error(`Error fetching thread: ${error.message}`)
+    } else {
+      console.log(error)
+    }
+  }
+}
+
+export async function addCommentToThread(
+  threadId: string,
+  commentText: string,
+  userId: string,
+  path: string,
+) {
+  connectToDB();
+
+  try {
+    const originalThread = await Thread.findById(threadId)
+
+    if(!originalThread) {
+      throw new Error("Thread not found")
+    }
+
+    const commentThread = new Thread({
+      text: commentText,
+      author: userId,
+      parentId: threadId
+    })
+
+    const savedCommentThread = await commentThread.save();
+
+    originalThread.children.push(savedCommentThread._id);
+
+    await originalThread.save()
+  } catch (error: unknown) {
+    if(error instanceof Error) {
+      throw new Error(`Error ading comment to thread: ${error.message}`)
+    } else {
+      console.log(error)
+    }
+    
+  }
 }
