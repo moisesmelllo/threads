@@ -38,6 +38,7 @@ export async function updateUser({
     {upsert: true},
     
     );
+
     
     if(path === '/profile/edit') {
       revalidatePath(path)
@@ -98,7 +99,6 @@ export async function fetchUserPosts(userId: string) {
   }
 }
 
-//TODO: ENTENDER ESTE CODIGO!
 export async function fetchUsers({
   userId,
   searchString = '',
