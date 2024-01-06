@@ -110,6 +110,7 @@ const ThreadCard = ({
           </div>
         </div>
 
+      </div>
         {/*TODO: DeleteThread*/}
          {/*TODO: Show comment logos*/}
 
@@ -129,7 +130,6 @@ const ThreadCard = ({
             />
           </Link>
          )}
-      </div>
     </article>
   )
 }
